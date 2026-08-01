@@ -309,7 +309,6 @@ def get_main_keyboard():
 
     keyboard.add_line()
 
-    # 🔥 КНОПКА "ЗАМОК" ТЕПЕРЬ ВЫГЛЯДИТ КАК @club183040898 🕍Замок
     keyboard.add_button('@club183040898 🕍Замок', color=VkKeyboardColor.PRIMARY)
 
     keyboard.add_line()
@@ -374,17 +373,11 @@ def main():
             save_transfers({})
             logger.info("📁 Создан файл transfers.json")
 
-        registered = load_registered(force=True)
-        logger.info("📌 Зарегистрированные пользователи:")
-        for user_id, data in registered.items():
-            logger.info(f"   • {user_id} - {data.get('name', 'Неизвестно')}")
-
         vk_session = vk_api.VkApi(token=TOKEN)
         vk = vk_session.get_api()
         longpoll = VkBotLongPoll(vk_session, GROUP_ID)
 
         logger.info("✅ Бот готов к работе!")
-        logger.info("📌 Для начала работы напишите 'рег'")
 
         for event in longpoll.listen():
             if event.type == VkBotEventType.MESSAGE_NEW:
@@ -466,19 +459,11 @@ def main():
                         else:
                             continue
 
-                    # ================= ПРОВЕРКА РЕГИСТРАЦИИ =================
-                    elif not is_registered(user_id):
-                        send_reply_to_chat(
-                            vk,
-                            peer_id,
-                            f"❌ Вы не зарегистрированы!\n"
-                            f"Напишите 'рег' для начала работы.",
-                            reply_to=message_id
-                        )
-                        continue
+                    # ================= 🔥 УБРАНА ПРОВЕРКА РЕГИСТРАЦИИ =================
+                    # Теперь все команды доступны без регистрации
 
                     # ================= КОМАНДА "ПЕРЕДАТЬ" =================
-                    elif msg.startswith('передать'):
+                    if msg.startswith('передать'):
                         try:
                             if not reply_to_user_id:
                                 send_reply_to_chat(
@@ -689,9 +674,8 @@ def main():
                                 reply_to=message_id
                             )
 
-                    # ================= 🔥 КНОПКА "ЗАМОК" (ЗАГЛУШКА) =================
+                    # ================= КНОПКА "ЗАМОК" (ЗАГЛУШКА) =================
                     elif '@club183040898' in msg or 'замок' in msg or '🕍' in msg:
-                        # 🔥 НИЧЕГО НЕ ОТПРАВЛЯЕМ В ЧАТ
                         logger.info(f"🏰 Пользователь {user_id} нажал на кнопку «Замок» (без ответа)")
 
                     # ================= КНОПКА "ХРАНИЛИЩЕ" =================
@@ -727,7 +711,7 @@ def main():
                     elif msg in ['помощь', 'бот', 'help', '/help']:
                         help_text = (
                             "📋 **Команды бота:**\n\n"
-                            "✅ `рег` — зарегистрироваться\n\n"
+                            "✅ `рег` — зарегистрироваться (необязательно)\n\n"
                             "🏪 **Хранилище** — показать все предметы всех пользователей\n"
                             "🔗 **@club183040898 🕍Замок** — (без ответа)\n\n"
                             "📝 **Добавление:**\n"
