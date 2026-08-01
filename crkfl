@@ -35,7 +35,6 @@ logger = logging.getLogger(__name__)
 
 # ================= РАБОТА С ПЕРЕДАЧАМИ =================
 def load_transfers():
-    """Загружает данные о передачах"""
     if os.path.exists(TRANSFER_FILE):
         try:
             with open(TRANSFER_FILE, 'r', encoding='utf-8') as f:
@@ -46,7 +45,6 @@ def load_transfers():
 
 
 def save_transfers(data):
-    """Сохраняет данные о передачах"""
     try:
         with open(TRANSFER_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -57,7 +55,6 @@ def save_transfers(data):
 
 
 def add_transfer(from_user, to_user, item_name, quantity=1):
-    """Добавляет запись о передаче предмета"""
     transfers = load_transfers()
     transfer_id = f"{int(time.time())}_{random.randint(1000, 9999)}"
 
@@ -73,8 +70,7 @@ def add_transfer(from_user, to_user, item_name, quantity=1):
     return transfer_id
 
 
-def complete_transfer(transfer_id, storage_type='books'):
-    """Отмечает передачу как завершённую"""
+def complete_transfer(transfer_id, storage_type='storage'):
     transfers = load_transfers()
     if transfer_id in transfers:
         transfers[transfer_id]['status'] = 'completed'
@@ -85,7 +81,6 @@ def complete_transfer(transfer_id, storage_type='books'):
 
 
 def get_pending_transfers(user_id):
-    """Получает все ожидающие передачи для пользователя"""
     transfers = load_transfers()
     pending = []
     for transfer_id, data in transfers.items():
@@ -101,22 +96,40 @@ def get_pending_transfers(user_id):
 
 
 # ================= РАБОТА С РЕГИСТРАЦИЕЙ =================
-def load_registered():
-    """Загружает список зарегистрированных пользователей"""
+_registered_cache = None
+_registered_cache_time = 0
+
+def load_registered(force=False):
+    global _registered_cache, _registered_cache_time
+    current_time = time.time()
+    
+    if not force and _registered_cache is not None and (current_time - _registered_cache_time) < 5:
+        return _registered_cache
+    
     if os.path.exists(REGISTER_FILE):
         try:
             with open(REGISTER_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                _registered_cache = json.load(f)
+                _registered_cache_time = current_time
+                logger.info(f"📂 Загружено {len(_registered_cache)} зарегистрированных пользователей")
+                return _registered_cache
         except:
+            _registered_cache = {}
+            _registered_cache_time = current_time
             return {}
+    
+    _registered_cache = {}
+    _registered_cache_time = current_time
     return {}
 
 
 def save_registered(data):
-    """Сохраняет список зарегистрированных пользователей"""
     try:
         with open(REGISTER_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+        global _registered_cache, _registered_cache_time
+        _registered_cache = data
+        _registered_cache_time = time.time()
         return True
     except Exception as e:
         logger.error(f"Ошибка сохранения регистрации: {e}")
@@ -124,8 +137,7 @@ def save_registered(data):
 
 
 def register_user(user_id):
-    """Регистрирует пользователя"""
-    registered = load_registered()
+    registered = load_registered(force=True)
     str_user_id = str(user_id)
 
     if str_user_id not in registered:
@@ -149,13 +161,16 @@ def register_user(user_id):
 
 
 def is_registered(user_id):
-    """Проверяет, зарегистрирован ли пользователь"""
-    registered = load_registered()
-    return str(user_id) in registered
+    registered = load_registered(force=True)
+    str_user_id = str(user_id)
+    result = str_user_id in registered
+    logger.info(f"🔍 Проверка регистрации для {user_id}: {result}")
+    if not result:
+        logger.info(f"   Доступные ID: {list(registered.keys())}")
+    return result
 
 
 def get_user_name(user_id):
-    """Получает имя пользователя по ID"""
     try:
         if user_id == DANIIL_ID:
             return "Даниил Юшков"
@@ -172,7 +187,6 @@ def get_user_name(user_id):
 
 # ================= РАБОТА С ХРАНИЛИЩАМИ =================
 def load_storage():
-    """Загружает данные хранилищ из файла"""
     if os.path.exists(STORAGE_FILE):
         try:
             with open(STORAGE_FILE, 'r', encoding='utf-8') as f:
@@ -183,7 +197,6 @@ def load_storage():
 
 
 def save_storage(data):
-    """Сохраняет данные хранилищ в файл"""
     try:
         with open(STORAGE_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -194,7 +207,6 @@ def save_storage(data):
 
 
 def get_user_storage(user_id):
-    """Получает хранилище пользователя"""
     data = load_storage()
     str_user_id = str(user_id)
     if str_user_id not in data:
@@ -208,7 +220,6 @@ def get_user_storage(user_id):
 
 
 def add_item_to_storage(user_id, item_type, item_name, quantity=1):
-    """Добавляет предмет в хранилище пользователя"""
     storage = get_user_storage(user_id)
 
     if item_type == 'books':
@@ -223,7 +234,6 @@ def add_item_to_storage(user_id, item_type, item_name, quantity=1):
 
 
 def remove_item_from_storage(user_id, item_type, item_name):
-    """Удаляет предмет из хранилища пользователя по названию"""
     storage = get_user_storage(user_id)
 
     if item_type == 'books':
@@ -266,7 +276,6 @@ def remove_item_from_storage(user_id, item_type, item_name):
 
 
 def get_all_items_from_all_users(item_type):
-    """Получает все предметы из хранилищ всех пользователей"""
     data = load_storage()
     all_items = []
 
@@ -293,7 +302,6 @@ def get_all_items_from_all_users(item_type):
 
 # ================= ФУНКЦИЯ СОЗДАНИЯ КЛАВИАТУРЫ =================
 def get_main_keyboard():
-    """Создаёт клавиатуру с пятью кнопками."""
     keyboard = VkKeyboard(one_time=False)
 
     keyboard.add_openlink_button(
@@ -315,12 +323,10 @@ def get_main_keyboard():
 
 
 def get_empty_keyboard():
-    """Создаёт пустую клавиатуру."""
     return VkKeyboard(one_time=False).get_empty_keyboard()
 
 
 def send_to_user(vk, user_id, message):
-    """Отправляет сообщение конкретному пользователю в ЛС"""
     try:
         vk.messages.send(
             user_id=user_id,
@@ -334,7 +340,6 @@ def send_to_user(vk, user_id, message):
 
 
 def send_reply_to_chat(vk, peer_id, message, reply_to=None, keyboard=None):
-    """Отправляет сообщение в чат."""
     try:
         params = {
             'peer_id': peer_id,
@@ -363,14 +368,19 @@ def main():
         if not os.path.exists(STORAGE_FILE):
             save_storage({})
             logger.info("📁 Создан файл user_storage.json")
-
+        
         if not os.path.exists(REGISTER_FILE):
             save_registered({})
             logger.info("📁 Создан файл registered_users.json")
-
+        
         if not os.path.exists(TRANSFER_FILE):
             save_transfers({})
             logger.info("📁 Создан файл transfers.json")
+
+        registered = load_registered(force=True)
+        logger.info("📌 Зарегистрированные пользователи:")
+        for user_id, data in registered.items():
+            logger.info(f"   • {user_id} - {data.get('name', 'Неизвестно')}")
 
         vk_session = vk_api.VkApi(token=TOKEN)
         vk = vk_session.get_api()
@@ -386,6 +396,16 @@ def main():
                     message_text = event.message.text
                     message_id = event.message.id
                     peer_id = event.message.peer_id
+
+                    # 🔥 ИГНОРИРУЕМ СООБЩЕНИЯ ОТ ГРУПП
+                    if user_id < 0:
+                        logger.info(f"⏭️ Сообщение от группы {user_id} проигнорировано")
+                        continue
+
+                    # 🔥 ИГНОРИРУЕМ СООБЩЕНИЯ ОТ САМОГО БОТА
+                    if user_id == GROUP_ID or user_id == -GROUP_ID:
+                        logger.info(f"⏭️ Сообщение от бота проигнорировано")
+                        continue
 
                     reply_to_user_id = None
                     if event.message.reply_message:
@@ -450,88 +470,71 @@ def main():
                         else:
                             continue
 
-                    # ================= 🔥 ПРОВЕРКА РЕГИСТРАЦИИ (с принудительной перезагрузкой) =================
+                    # ================= ПРОВЕРКА РЕГИСТРАЦИИ =================
                     elif not is_registered(user_id):
-                        # 🔥 ПРИНУДИТЕЛЬНО ПЕРЕЗАГРУЖАЕМ ДАННЫЕ
-                        load_registered()
-                        # Проверяем ещё раз
-                        if not is_registered(user_id):
-                            send_reply_to_chat(
-                                vk,
-                                peer_id,
-                                f"❌ Вы не зарегистрированы!\n"
-                                f"Напишите 'рег' для начала работы.",
-                                reply_to=message_id
-                            )
-                            continue
-                        else:
-                            # Если после перезагрузки нашлась регистрация - продолжаем
-                            logger.info(f"✅ Данные о регистрации {user_id} обновлены")
+                        send_reply_to_chat(
+                            vk,
+                            peer_id,
+                            f"❌ Вы не зарегистрированы!\n"
+                            f"Напишите 'рег' для начала работы.",
+                            reply_to=message_id
+                        )
+                        continue
 
-                    # ================= КОМАНДА "ХОЧУ" (автоматическая передача) =================
-                    elif msg.startswith('хочу'):
+                    # ================= КОМАНДА "ПЕРЕДАТЬ" =================
+                    elif msg.startswith('передать'):
                         try:
-                            name = msg.replace('хочу', '').strip()
-
-                            if not name:
+                            if not reply_to_user_id:
                                 send_reply_to_chat(
                                     vk,
                                     peer_id,
-                                    "❌ Что хотите? Напишите: хочу [название]",
+                                    "❌ Чтобы передать предмет, ответьте на сообщение Даниила Юшкова!",
                                     reply_to=message_id
                                 )
                                 continue
 
-                            # Проверяем, есть ли предмет в хранилище пользователя
-                            storage = get_user_storage(user_id)
-                            found_in_books = False
-                            found_in_storage = False
-
-                            for book in storage.get('books', []):
-                                if book['name'].lower() == name.lower():
-                                    found_in_books = True
-                                    break
-
-                            for item in storage.get('storage', []):
-                                if item['name'].lower() == name.lower():
-                                    found_in_storage = True
-                                    break
-
-                            if found_in_books or found_in_storage:
+                            if reply_to_user_id != DANIIL_ID:
                                 send_reply_to_chat(
                                     vk,
                                     peer_id,
-                                    f"✅ Предмет «{name}» уже есть в вашем хранилище!",
+                                    f"❌ Вы можете передавать предметы только Даниилу Юшкову!",
                                     reply_to=message_id
                                 )
-                            else:
-                                # Автоматическая передача
-                                success, result = remove_item_from_storage(user_id, 'books', name)
+                                continue
 
-                                if not success:
-                                    success, result = remove_item_from_storage(user_id, 'storage', name)
-
-                                if success:
-                                    add_item_to_storage(user_id, 'storage', name, 1)
-                                    logger.info(f"📦 Предмет «{name}» передан пользователю {user_id}")
-
-                                    transfer_id = add_transfer(user_id, DANIIL_ID, name, 1)
-                                    complete_transfer(transfer_id, 'storage')
+                            parts = msg.split()
+                            if len(parts) >= 2:
+                                if len(parts) >= 3 and parts[-1].isdigit():
+                                    quantity = int(parts[-1])
+                                    name = ' '.join(parts[1:-1])
                                 else:
-                                    send_reply_to_chat(
-                                        vk,
-                                        peer_id,
-                                        f"❌ Предмет «{name}» не найден в вашем хранилище!\n"
-                                        f"Сначала положите его командой: положить склад {name} 1",
-                                        reply_to=message_id
-                                    )
+                                    quantity = 1
+                                    name = ' '.join(parts[1:])
 
+                                transfer_id = add_transfer(user_id, DANIIL_ID, name, quantity)
+
+                                send_reply_to_chat(
+                                    vk,
+                                    peer_id,
+                                    f"✅ Предмет «{name}» (x{quantity}) передан Даниилу Юшкову!\n"
+                                    f"Ожидайте, пока он положит его в хранилище.",
+                                    reply_to=message_id
+                                )
+
+                            else:
+                                send_reply_to_chat(
+                                    vk,
+                                    peer_id,
+                                    "❌ Формат: передать [название] [количество]\n"
+                                    "Пример: передать рыбий жир 1",
+                                    reply_to=message_id
+                                )
                         except Exception as e:
-                            logger.error(f"Ошибка: {e}")
+                            logger.error(f"Ошибка передачи: {e}")
                             send_reply_to_chat(
                                 vk,
                                 peer_id,
-                                "❌ Ошибка! Формат: хочу [название]",
+                                "❌ Ошибка! Формат: передать [название] [количество]",
                                 reply_to=message_id
                             )
 
@@ -539,42 +542,83 @@ def main():
                     elif msg.startswith('положить'):
                         try:
                             parts = msg.split()
-                            if len(parts) >= 3:
+                            if len(parts) >= 2:
                                 full_text = ' '.join(parts)
-                                name = ' '.join(parts[1:-1])
-                                quantity = int(parts[-1])
-
-                                if 'книгу' in full_text or 'книга' in full_text:
-                                    add_item_to_storage(user_id, 'books', name, quantity)
-                                    send_reply_to_chat(
+                                
+                                # Определяем название предмета
+                                name = ' '.join(parts[1:])
+                                quantity = 1
+                                
+                                # Проверяем, есть ли количество в конце
+                                if len(parts) >= 3 and parts[-1].isdigit():
+                                    quantity = int(parts[-1])
+                                    name = ' '.join(parts[1:-1])
+                                
+                                # 🔥 ИЩЕМ ОЖИДАЮЩУЮ ПЕРЕДАЧУ ДЛЯ ДАНИИЛА
+                                pending = get_pending_transfers(DANIIL_ID)
+                                from_user = None
+                                transfer_id = None
+                                for transfer in pending:
+                                    if transfer['item_name'].lower() == name.lower():
+                                        from_user = transfer['from_user']
+                                        transfer_id = transfer['id']
+                                        break
+                                
+                                if from_user:
+                                    # ✅ НАЙДЕНА ПЕРЕДАЧА - КЛАДЁМ ОТ ИМЕНИ ОТПРАВИТЕЛЯ
+                                    if 'книгу' in full_text or 'книга' in full_text:
+                                        add_item_to_storage(from_user, 'books', name, quantity)
+                                        if transfer_id:
+                                            complete_transfer(transfer_id, 'books')
+                                        send_reply_to_chat(
+                                            vk,
+                                            peer_id,
+                                            f"✅ Книга «{name}» (x{quantity}) положена в хранилище от {get_user_name(from_user)}!",
+                                            reply_to=message_id
+                                        )
+                                    else:
+                                        # По умолчанию кладём на склад
+                                        add_item_to_storage(from_user, 'storage', name, quantity)
+                                        if transfer_id:
+                                            complete_transfer(transfer_id, 'storage')
+                                        send_reply_to_chat(
+                                            vk,
+                                            peer_id,
+                                            f"✅ Предмет «{name}» (x{quantity}) положен на склад от {get_user_name(from_user)}!",
+                                            reply_to=message_id
+                                        )
+                                    
+                                    # Уведомляем отправителя
+                                    send_to_user(
                                         vk,
-                                        peer_id,
-                                        f"✅ Книга «{name}» (x{quantity}) положена в хранилище!",
-                                        reply_to=message_id
-                                    )
-                                elif 'склад' in full_text or 'предмет' in full_text:
-                                    add_item_to_storage(user_id, 'storage', name, quantity)
-                                    send_reply_to_chat(
-                                        vk,
-                                        peer_id,
-                                        f"✅ Предмет «{name}» (x{quantity}) положен на склад!",
-                                        reply_to=message_id
+                                        from_user,
+                                        f"📦 Ваш предмет «{name}» (x{quantity}) положен на склад!"
                                     )
                                 else:
-                                    add_item_to_storage(user_id, 'books', name, quantity)
-                                    add_item_to_storage(user_id, 'storage', name, quantity)
-                                    send_reply_to_chat(
-                                        vk,
-                                        peer_id,
-                                        f"✅ «{name}» (x{quantity}) положено в книги и на склад!",
-                                        reply_to=message_id
-                                    )
+                                    # ❌ НЕТ ПЕРЕДАЧИ - КЛАДЁМ ОТ ИМЕНИ ПОЛЬЗОВАТЕЛЯ
+                                    if 'книгу' in full_text or 'книга' in full_text:
+                                        add_item_to_storage(user_id, 'books', name, quantity)
+                                        send_reply_to_chat(
+                                            vk,
+                                            peer_id,
+                                            f"✅ Книга «{name}» (x{quantity}) положена в хранилище!",
+                                            reply_to=message_id
+                                        )
+                                    else:
+                                        add_item_to_storage(user_id, 'storage', name, quantity)
+                                        send_reply_to_chat(
+                                            vk,
+                                            peer_id,
+                                            f"✅ Предмет «{name}» (x{quantity}) положен на склад!",
+                                            reply_to=message_id
+                                        )
                             else:
                                 send_reply_to_chat(
                                     vk,
                                     peer_id,
-                                    "❌ Формат: положить книгу [название] [количество]\n"
-                                    "Или: положить склад [название] [количество]",
+                                    "❌ Формат: положить [название] [количество]\n"
+                                    "Или: положить книгу [название] [количество]\n"
+                                    "Пример: положить рыбий жир 1",
                                     reply_to=message_id
                                 )
                         except Exception as e:
@@ -582,7 +626,7 @@ def main():
                             send_reply_to_chat(
                                 vk,
                                 peer_id,
-                                "❌ Ошибка! Формат: положить книгу [название] [количество]",
+                                "❌ Ошибка! Формат: положить [название] [количество]",
                                 reply_to=message_id
                             )
 
@@ -600,6 +644,7 @@ def main():
                                 )
                                 continue
 
+                            # Сначала ищем в книгах
                             success, result = remove_item_from_storage(user_id, 'books', name)
 
                             if not success:
@@ -613,6 +658,71 @@ def main():
                                 vk,
                                 peer_id,
                                 "❌ Ошибка! Формат: выдай [название]",
+                                reply_to=message_id
+                            )
+
+                    # ================= КОМАНДА "ХОЧУ" =================
+                    elif msg.startswith('хочу'):
+                        try:
+                            name = msg.replace('хочу', '').strip()
+                            
+                            if not name:
+                                send_reply_to_chat(
+                                    vk,
+                                    peer_id,
+                                    "❌ Что хотите? Напишите: хочу [название]",
+                                    reply_to=message_id
+                                )
+                                continue
+                            
+                            storage = get_user_storage(user_id)
+                            found_in_books = False
+                            found_in_storage = False
+                            
+                            for book in storage.get('books', []):
+                                if book['name'].lower() == name.lower():
+                                    found_in_books = True
+                                    break
+                            
+                            for item in storage.get('storage', []):
+                                if item['name'].lower() == name.lower():
+                                    found_in_storage = True
+                                    break
+                            
+                            if found_in_books or found_in_storage:
+                                send_reply_to_chat(
+                                    vk,
+                                    peer_id,
+                                    f"✅ Предмет «{name}» уже есть в вашем хранилище!",
+                                    reply_to=message_id
+                                )
+                            else:
+                                success, result = remove_item_from_storage(user_id, 'books', name)
+                                
+                                if not success:
+                                    success, result = remove_item_from_storage(user_id, 'storage', name)
+                                
+                                if success:
+                                    add_item_to_storage(user_id, 'storage', name, 1)
+                                    logger.info(f"📦 Предмет «{name}» передан пользователю {user_id}")
+                                    
+                                    transfer_id = add_transfer(user_id, DANIIL_ID, name, 1)
+                                    complete_transfer(transfer_id, 'storage')
+                                else:
+                                    send_reply_to_chat(
+                                        vk,
+                                        peer_id,
+                                        f"❌ Предмет «{name}» не найден в вашем хранилище!\n"
+                                        f"Сначала положите его командой: положить {name} 1",
+                                        reply_to=message_id
+                                    )
+                            
+                        except Exception as e:
+                            logger.error(f"Ошибка: {e}")
+                            send_reply_to_chat(
+                                vk,
+                                peer_id,
+                                "❌ Ошибка! Формат: хочу [название]",
                                 reply_to=message_id
                             )
 
@@ -640,9 +750,9 @@ def main():
                             response = "📦 **Ваши предметы на складе:**\n\n"
                             for i, item in enumerate(items):
                                 response += f"{i + 1}. {item['name']} (x{item['quantity']})\n"
-                            response += "\n💡 Чтобы добавить предмет, напишите: положить склад [название] [количество]\n💡 Чтобы забрать предмет, напишите: выдай [название]"
+                            response += "\n💡 Чтобы добавить предмет, напишите: положить [название] [количество]\n💡 Чтобы забрать предмет, напишите: выдай [название]"
                         else:
-                            response = "📦 **Ваши предметы на складе:**\n\nУ вас пока нет предметов.\n\n💡 Чтобы добавить предмет, напишите: положить склад [название] [количество]"
+                            response = "📦 **Ваши предметы на складе:**\n\nУ вас пока нет предметов.\n\n💡 Чтобы добавить предмет, напишите: положить [название] [количество]"
 
                         send_reply_to_chat(vk, peer_id, response, reply_to=message_id)
 
@@ -685,11 +795,14 @@ def main():
                             "🏪 **Хранилище** — показать все предметы всех пользователей\n\n"
                             "📝 **Добавление:**\n"
                             "• положить книгу [название] [количество]\n"
-                            "• положить склад [название] [количество]\n\n"
+                            "• положить склад [название] [количество]\n"
+                            "• положить [название] [количество] — кладёт на склад\n\n"
                             "📤 **Получение:**\n"
                             "• выдай [название] — забрать из хранилища\n\n"
-                            "📤 **Запрос предмета (автоматическая передача):**\n"
-                            "• хочу [название] — бот передаст вам предмет, если он есть в вашем хранилище\n\n"
+                            "📤 **Передача:**\n"
+                            "• передать [название] [количество] — ответом на сообщение Даниила\n\n"
+                            "📤 **Запрос предмета:**\n"
+                            "• хочу [название] — запросить предмет\n\n"
                             "⚙️ **Управление клавиатурой (только для Екатерины):**\n"
                             "• меню — показать кнопки\n"
                             "• -меню — скрыть кнопки"
@@ -701,7 +814,6 @@ def main():
 
     except Exception as e:
         logger.error(f"❌ Ошибка: {e}")
-
 
 if __name__ == "__main__":
     main()
